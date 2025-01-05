@@ -1,0 +1,44 @@
+{
+  "name": "intelligent-calendar-assistant",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon src/app.ts",
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@huggingface/inference": "^2.8.1",
+    "@langchain/anthropic": "^0.3.11",
+    "@langchain/community": "^0.3.22",
+    "@langchain/core": "^0.3.27",
+    "@types/express": "^5.0.0",
+    "@types/nodemailer": "^6.4.17",
+    "@types/uuid": "^10.0.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "nodemailer": "^6.9.16",
+    "nodemon": "^3.1.9",
+    "pg": "^8.13.1",
+    "puppeteer": "^23.11.1",
+    "ts-node": "^10.9.2",
+    "uuid": "^11.0.3"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.4",
+    "@types/pg": "^8.11.10",
+    "@types/puppeteer": "^5.4.7",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.7.2"
+  }
+}
