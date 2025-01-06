@@ -11,6 +11,6 @@
     "allowSyntheticDefaultImports": true,
     "types": ["node", "pg"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]
 }
