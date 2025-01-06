@@ -9,26 +9,6 @@ export class PuppeteerService {
 
   async initBrowser() {
     try {
-      // Debug: Check Chrome installation
-      const { execSync } = require("child_process");
-      try {
-        const chromePath = execSync("which google-chrome").toString().trim();
-        console.log("Chrome found at:", chromePath);
-
-        const chromeVersion = execSync("google-chrome --version")
-          .toString()
-          .trim();
-        console.log("Chrome version:", chromeVersion);
-
-        // List contents of /usr/bin to find Chrome
-        const binContents = execSync(
-          "ls -l /usr/bin/google-chrome*"
-        ).toString();
-        console.log("Chrome binaries found:", binContents);
-      } catch (error) {
-        console.error("Error checking Chrome:", error);
-      }
-
       this.browser = await puppeteer.launch({
         headless: true,
         args: [
@@ -38,7 +18,6 @@ export class PuppeteerService {
         ],
         executablePath: "/usr/bin/google-chrome",
       });
-      console.log("Browser launched successfully");
       this.page = await this.browser.newPage();
     } catch (error) {
       console.error("Browser launch failed:", error);
