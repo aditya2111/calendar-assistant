@@ -2,40 +2,27 @@ import { Page } from "puppeteer";
 import * as puppeteer from "puppeteer";
 import { FormDetails } from "../types/booking";
 
-require("dotenv").config();
-
 export class PuppeteerService {
   private page: Page | null = null;
   private browser: puppeteer.Browser | null = null;
+  private selectedDate: string | undefined;
 
   async initBrowser() {
     try {
-      // Defining options directly in the launch call
       this.browser = await puppeteer.launch({
-        headless: true, // Correct usage of boolean
-        defaultViewport: { width: 1280, height: 800 },
+        headless: true,
         args: [
           "--no-sandbox",
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
-          "--disable-gpu",
-          "--no-first-run",
-          "--single-process",
-          "--start-maximized",
         ],
-        executablePath:
-          process.env.NODE_ENV === "production"
-            ? process.env.PUPPETEER_EXECUTABLE_PATH
-            : puppeteer.executablePath(),
       });
 
-      console.log("Browser launched successfully");
-
-      // Open a new page after successful browser launch
       this.page = await this.browser.newPage();
+      await this.page.setViewport({ width: 1280, height: 800 });
       await this.page.setDefaultTimeout(30000);
     } catch (error) {
-      console.error("Browser launch error:", error);
+      console.error("Browser launch failed:", error);
       throw error;
     }
   }
