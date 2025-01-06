@@ -1,5 +1,5 @@
-import { Page } from "puppeteer-core";
-import * as puppeteer from "puppeteer-core";
+import { Page } from "puppeteer";
+import * as puppeteer from "puppeteer";
 import { FormDetails } from "../types/booking";
 
 export class PuppeteerService {
