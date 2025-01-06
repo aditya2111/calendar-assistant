@@ -9,9 +9,15 @@ export class PuppeteerService {
 
   async initBrowser() {
     this.browser = await puppeteer.launch({
-      headless: false, // Set to true in production
-      defaultViewport: { width: 1280, height: 800 },
-      args: ["--start-maximized"],
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--disable-gpu",
+      ],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     });
     this.page = await this.browser.newPage();
     await this.page.setDefaultTimeout(30000); // 30 seconds timeout
