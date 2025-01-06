@@ -7,26 +7,29 @@ export class PuppeteerService {
   private browser: puppeteer.Browser | null = null;
 
   async initBrowser() {
-    const options = {
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--no-first-run",
-        "--no-zygote",
-        "--single-process",
-      ],
-      headless: true,
-      executablePath:
-        process.env.NODE_ENV === "production"
-          ? "/usr/bin/chromium-browser"
-          : puppeteer.executablePath(),
-    };
-
     try {
-      this.browser = await puppeteer.launch(options);
+      // Defining options directly in the launch call
+      this.browser = await puppeteer.launch({
+        headless: true, // Correct usage of boolean
+        defaultViewport: { width: 1280, height: 800 },
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+          "--no-first-run",
+          "--single-process",
+          "--start-maximized",
+        ],
+        executablePath:
+          process.env.NODE_ENV === "production"
+            ? "/usr/bin/chromium-browser"
+            : undefined,
+      });
+
       console.log("Browser launched successfully");
+
+      // Open a new page after successful browser launch
       this.page = await this.browser.newPage();
       await this.page.setDefaultTimeout(30000);
     } catch (error) {
