@@ -3,9 +3,9 @@ services:
     name: calendar-assistant
     env: node
     buildCommand: |
-      apt-get update && apt-get install -y chromium chromium-browser
-      npm install && npm run build
-      npm run build
+    apt-get update && apt-get install -y chromium chromium-browser
+    npm install --production=false  # This installs dev dependencies too
+    npm run build
     startCommand: npm start
     envVars:
       - key: DATABASE_URL
