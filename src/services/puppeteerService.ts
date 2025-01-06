@@ -5,7 +5,6 @@ import { FormDetails } from "../types/booking";
 export class PuppeteerService {
   private page: Page | null = null;
   private browser: puppeteer.Browser | null = null;
-  private selectedDate: string | undefined;
 
   async initBrowser() {
     this.browser = await puppeteer.launch({
@@ -17,7 +16,11 @@ export class PuppeteerService {
         "--disable-accelerated-2d-canvas",
         "--disable-gpu",
       ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      // For Render deployment
+      executablePath:
+        process.env.NODE_ENV === "production"
+          ? "/usr/bin/chromium" // Path to Chromium in Render
+          : undefined,
     });
     this.page = await this.browser.newPage();
     await this.page.setDefaultTimeout(30000); // 30 seconds timeout
