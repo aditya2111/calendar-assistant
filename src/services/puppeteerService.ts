@@ -9,8 +9,6 @@ export class PuppeteerService {
 
   async initBrowser() {
     try {
-      console.log("Chrome path:", process.env.PUPPETEER_EXECUTABLE_PATH);
-
       this.browser = await puppeteer.launch({
         headless: true,
         args: [
@@ -19,7 +17,6 @@ export class PuppeteerService {
           "--disable-dev-shm-usage",
           "--disable-gpu",
         ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
       });
 
       console.log("Browser launched successfully");
