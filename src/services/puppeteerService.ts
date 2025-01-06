@@ -16,7 +16,10 @@ export class PuppeteerService {
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
         ],
-        executablePath: "/usr/bin/google-chrome",
+        executablePath:
+          process.env.NODE_ENV === "production"
+            ? process.env.PUPPETEER_EXECUTABLE_PATH
+            : puppeteer.executablePath(),
       });
       this.page = await this.browser.newPage();
     } catch (error) {
