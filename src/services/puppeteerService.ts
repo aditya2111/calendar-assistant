@@ -9,18 +9,36 @@ export class PuppeteerService {
 
   async initBrowser() {
     try {
-      this.browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-        ],
-      });
+      // First try with installed Chrome
+      try {
+        this.browser = await puppeteer.launch({
+          headless: true,
+          args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+          ],
+          executablePath: "/usr/bin/google-chrome",
+        });
+      } catch (firstError) {
+        console.log("First launch attempt failed, trying default:", firstError);
 
+        // If that fails, let Puppeteer use its own Chrome
+        this.browser = await puppeteer.launch({
+          headless: true,
+          args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+          ],
+        });
+      }
+
+      console.log("Browser launched successfully");
       this.page = await this.browser.newPage();
       await this.page.setViewport({ width: 1280, height: 800 });
-      console.log("Browser initialized successfully");
     } catch (error) {
       console.error("Browser initialization failed:", error);
       throw error;
