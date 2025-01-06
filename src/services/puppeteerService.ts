@@ -7,23 +7,32 @@ export class PuppeteerService {
   private browser: puppeteer.Browser | null = null;
 
   async initBrowser() {
-    this.browser = await puppeteer.launch({
-      headless: true,
+    const options = {
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
         "--disable-gpu",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
       ],
-      // For Render deployment
+      headless: true,
       executablePath:
         process.env.NODE_ENV === "production"
-          ? "/usr/bin/chromium" // Path to Chromium in Render
-          : undefined,
-    });
-    this.page = await this.browser.newPage();
-    await this.page.setDefaultTimeout(30000); // 30 seconds timeout
+          ? "/usr/bin/chromium-browser"
+          : puppeteer.executablePath(),
+    };
+
+    try {
+      this.browser = await puppeteer.launch(options);
+      console.log("Browser launched successfully");
+      this.page = await this.browser.newPage();
+      await this.page.setDefaultTimeout(30000);
+    } catch (error) {
+      console.error("Browser launch error:", error);
+      throw error;
+    }
   }
 
   async closeBrowser() {
