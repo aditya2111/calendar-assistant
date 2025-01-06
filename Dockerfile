@@ -11,5 +11,6 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npm run build
+WORKDIR /usr/src/app/dist
 
-CMD ["npm", "start"]
+CMD ["node", "app.js"]
