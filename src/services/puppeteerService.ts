@@ -16,14 +16,13 @@ export class PuppeteerService {
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
         ],
-        executablePath:
-          process.env.NODE_ENV === "production"
-            ? process.env.PUPPETEER_EXECUTABLE_PATH
-            : puppeteer.executablePath(),
       });
+
       this.page = await this.browser.newPage();
+      await this.page.setViewport({ width: 1280, height: 800 });
+      console.log("Browser initialized successfully");
     } catch (error) {
-      console.error("Browser launch failed:", error);
+      console.error("Browser initialization failed:", error);
       throw error;
     }
   }
