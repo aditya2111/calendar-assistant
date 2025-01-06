@@ -179,7 +179,7 @@ export class PuppeteerService {
       } else if (minutes < 45) {
         targetTime.setMinutes(30, 0, 0);
       } else {
-        targetTime.setMinutes(30, 0, 0);
+        targetTime.setMinutes(0, 0, 0);
         targetTime.setHours(targetTime.getHours() + 1);
       }
 
