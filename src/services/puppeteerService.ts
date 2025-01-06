@@ -21,10 +21,7 @@ export class PuppeteerService {
           "--single-process",
           "--start-maximized",
         ],
-        executablePath:
-          process.env.NODE_ENV === "production"
-            ? "/usr/bin/chromium-browser"
-            : undefined,
+        executablePath: puppeteer.executablePath(),
       });
 
       console.log("Browser launched successfully");
