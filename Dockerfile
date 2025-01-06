@@ -3,6 +3,8 @@ FROM node:slim
 # We don't need the standalone Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
 
+WORKDIR /app
+
 # Install Google Chrome Stable and fonts
 # Note: this installs the necessary libs to make the browser work with Puppeteer.
 RUN apt-get update && apt-get install gnupg wget -y && \
@@ -16,8 +18,9 @@ RUN apt-get update && apt-get install gnupg wget -y && \
 # Copy package.json and package-lock.json first for better caching
 COPY package*.json ./
 
-# Install Node.js dependencies (without Chromium since we set PUPPETEER_SKIP_CHROMIUM_DOWNLOAD)
-RUN npm install
+
+# Build TypeScript files
+RUN npm run build
 
 # Copy the entire project to the working directory
 COPY . .
@@ -27,4 +30,4 @@ RUN chmod -R o+rx /usr/bin/google-chrome-stable
 
 
 # Set the command to run the application
-CMD ["npm", "start"]
+CMD ["npm", "start", "dist/app.js"]
