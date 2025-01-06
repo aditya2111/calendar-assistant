@@ -12,8 +12,6 @@ RUN apt-get update && apt-get install gnupg wget -y && \
   apt-get install google-chrome-stable -y --no-install-recommends && \
   rm -rf /var/lib/apt/lists/*
 
-# Set the working directory inside the container
-WORKDIR /app
 
 # Copy package.json and package-lock.json first for better caching
 COPY package*.json ./
