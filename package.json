@@ -4,7 +4,7 @@
   "main": "dist/app.js",
   "scripts": {
     "dev": "nodemon src/app.ts",
-    "build": "tsc",
+    "build": "tsc && ls dist",
     "start": "node dist/app.js",
     "test": "jest",
     "test:watch": "jest --watch",
