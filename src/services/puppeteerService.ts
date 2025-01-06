@@ -2,6 +2,8 @@ import { Page } from "puppeteer";
 import * as puppeteer from "puppeteer";
 import { FormDetails } from "../types/booking";
 
+require("dotenv").config();
+
 export class PuppeteerService {
   private page: Page | null = null;
   private browser: puppeteer.Browser | null = null;
@@ -21,7 +23,10 @@ export class PuppeteerService {
           "--single-process",
           "--start-maximized",
         ],
-        executablePath: puppeteer.executablePath(),
+        executablePath:
+          process.env.NODE_ENV === "production"
+            ? process.env.PUPPETEER_EXECUTABLE_PATH
+            : puppeteer.executablePath(),
       });
 
       console.log("Browser launched successfully");
