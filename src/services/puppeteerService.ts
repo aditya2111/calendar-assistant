@@ -1,5 +1,5 @@
-import { Page } from "puppeteer";
-import * as puppeteer from "puppeteer";
+import { Page } from "puppeteer-core";
+import * as puppeteer from "puppeteer-core";
 import { FormDetails } from "../types/booking";
 
 export class PuppeteerService {
@@ -16,15 +16,9 @@ export class PuppeteerService {
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
         ],
-        executablePath:
-          process.env.NODE_ENV === "production"
-            ? "/usr/bin/google-chrome"
-            : undefined,
+        executablePath: "/usr/bin/google-chrome",
       });
-
       this.page = await this.browser.newPage();
-      await this.page.setViewport({ width: 1280, height: 800 });
-      await this.page.setDefaultTimeout(30000);
     } catch (error) {
       console.error("Browser launch failed:", error);
       throw error;
