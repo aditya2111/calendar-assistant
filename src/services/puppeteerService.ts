@@ -18,7 +18,6 @@ export class PuppeteerService {
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
         ],
-        // Let Puppeteer find Chrome automatically
       });
 
       console.log("Browser launched successfully");
@@ -49,7 +48,10 @@ export class PuppeteerService {
 
     try {
       console.log("Navigating to Calendly page...");
-      await this.page.goto(calendlyUrl, { waitUntil: "networkidle0" });
+      await this.page.goto(calendlyUrl, {
+        waitUntil: "networkidle0",
+        timeout: 60000, // Increased to 60 seconds
+      });
       console.log("Navigation completed");
     } catch (error) {
       console.error("Error navigating to Calendly page:", error);
