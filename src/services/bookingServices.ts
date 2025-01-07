@@ -64,19 +64,35 @@ export class BookingService {
           guests: details.guestEmails,
           notes: details.notes,
         };
+        let confirmationMessage: string;
 
-        const confirmationMessage =
-          await this.messageGenerator.generateConfirmationMessage(
-            messageDetails
-          );
-        console.log("Generated confirmation message:", confirmationMessage);
+        //Generate confirmation message
+
+        try {
+          confirmationMessage =
+            await this.messageGenerator.generateConfirmationMessage(
+              messageDetails
+            );
+          console.log("Generated confirmation message:", confirmationMessage);
+        } catch (error) {
+          console.error("Error generating confirmation message:", error);
+          throw new Error("Failed to generate confirmation message.");
+        }
 
         // Send confirmation email
-        await this.emailService.sendEmail({
-          to: details.email,
-          subject: "Meeting Confirmation",
-          text: confirmationMessage,
-        });
+        try {
+          await this.emailService.sendEmail({
+            to: details.email,
+            subject: "Meeting Confirmation",
+            text: confirmationMessage,
+          });
+        } catch (error) {
+          console.error(
+            "Error generating or sending confirmation message:",
+            error
+          );
+          throw new Error("Failed to generate or send confirmation message.");
+        }
 
         // Update to confirmation sent
         await BookingModel.updateStatus(
@@ -93,7 +109,7 @@ export class BookingService {
       await BookingModel.updateStatus(bookingId, BookingStatus.FAILED);
       throw error;
     } finally {
-      await this.puppeteerService.closeBrowser();
+      await this.puppeteerService.safeCloseBrowser();
     }
   }
 }

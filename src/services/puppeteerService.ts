@@ -5,7 +5,7 @@ import { FormDetails } from "../types/booking";
 export class PuppeteerService {
   private page: Page | null = null;
   private browser: puppeteer.Browser | null = null;
-  private selectedDate: string | undefined;
+  private activeResources: Set<string> = new Set();
 
   async initBrowser() {
     try {
@@ -20,19 +20,63 @@ export class PuppeteerService {
         ],
       });
 
-      console.log("Browser launched successfully");
       this.page = await this.browser.newPage();
+      this.setupPageErrorHandling();
+      console.log("Browser launched successfully");
     } catch (error) {
       console.error("Browser initialization failed:", error);
-      console.error("Error details:", error);
+      await this.safeCloseBrowser();
       throw error;
     }
   }
-  async closeBrowser() {
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
-      this.page = null;
+  async safeCloseBrowser(): Promise<void> {
+    try {
+      console.log("Starting browser cleanup...");
+
+      // Clean up any active resources
+      for (const resource of this.activeResources) {
+        console.log(`Cleaning up resource: ${resource}`);
+        try {
+          await this.page?.evaluate((res) => {
+            // Clean up any event listeners or resources
+            const element = document.querySelector(res);
+            if (element) {
+              element.remove();
+            }
+          }, resource);
+        } catch (error) {
+          console.error(`Failed to clean resource ${resource}:`, error);
+        }
+      }
+      this.activeResources.clear();
+
+      // Close page
+      if (this.page) {
+        console.log("Closing page...");
+        try {
+          await this.page.removeAllListeners();
+          await this.page.close();
+        } catch (pageError) {
+          console.error("Error closing page:", pageError);
+        }
+        this.page = null;
+      }
+
+      // Close browser
+      if (this.browser) {
+        console.log("Closing browser...");
+        try {
+          await this.browser.close();
+        } catch (browserError) {
+          console.error("Error closing browser:", browserError);
+        }
+        this.browser = null;
+      }
+
+      console.log("Cleanup completed successfully");
+    } catch (error) {
+      console.error("Error during cleanup:", error);
+      throw error;
     }
   }
 
@@ -83,6 +127,7 @@ export class PuppeteerService {
 
     try {
       const utcDate = new Date(desiredBookingTime);
+      this.trackResource('[data-container="time-button"]');
 
       // Create a date object in local timezone for the same calendar date
       const desiredDate = new Date(
@@ -215,10 +260,10 @@ export class PuppeteerService {
 
                       if (slots.length > 0) {
                         resolve(true);
-                      } else if (attempts < 10) {
-                        // Try for 5 seconds (10 * 500ms)
+                      } else if (attempts < 2) {
+                        // Try for 5 seconds (2 * 500ms)
                         attempts++;
-                        setTimeout(checkTimeSlots, 500);
+                        setTimeout(checkTimeSlots, 100);
                       } else {
                         resolve(false);
                       }
@@ -466,7 +511,7 @@ export class PuppeteerService {
       return this.retry(fn, retries - 1, delay);
     }
   }
-  async roundTime(targetTime: Date): Promise<void> {
+  private async roundTime(targetTime: Date): Promise<void> {
     const minutes = targetTime.getMinutes();
     if (minutes < 15) {
       targetTime.setMinutes(0, 0, 0);
@@ -476,5 +521,22 @@ export class PuppeteerService {
       targetTime.setMinutes(0, 0, 0);
       targetTime.setHours(targetTime.getHours() + 1);
     }
+  }
+  // Method to handle page crashes or errors
+  private setupPageErrorHandling(): void {
+    if (!this.page) return;
+
+    this.page.on("error", async (error) => {
+      console.error("Page crashed:", error);
+      await this.safeCloseBrowser();
+    });
+
+    this.page.on("pageerror", async (error) => {
+      console.error("Page error:", error);
+      await this.safeCloseBrowser();
+    });
+  }
+  private trackResource(selector: string): void {
+    this.activeResources.add(selector);
   }
 }
