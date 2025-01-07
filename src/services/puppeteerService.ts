@@ -9,7 +9,7 @@ export class PuppeteerService {
 
   async initBrowser() {
     try {
-      console.log("Chrome path:", process.env.PUPPETEER_EXECUTABLE_PATH);
+      console.log("Starting browser initialization...");
 
       this.browser = await puppeteer.launch({
         headless: true,
@@ -17,9 +17,7 @@ export class PuppeteerService {
           "--no-sandbox",
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
-          "--disable-gpu",
         ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
       });
 
       console.log("Browser launched successfully");
@@ -30,7 +28,6 @@ export class PuppeteerService {
       throw error;
     }
   }
-
   async closeBrowser() {
     if (this.browser) {
       await this.browser.close();
