@@ -163,9 +163,37 @@ export class PuppeteerService {
 
         if (dayFromLabel === desiredDay) {
           console.log(`Found exact date: ${currentMonth} ${desiredDay}`);
+
+          // Click the date
           await button.click();
           console.log("Clicked on the date");
-          return true;
+
+          // Wait for the click to register and page to update
+          try {
+            // Wait for any loading indicators to disappear
+            await this.page!.waitForNetworkIdle({ timeout: 5000 });
+
+            // Verify time slots container appears
+            const timeSlotVerification = await this.page!.waitForSelector(
+              'button[data-container="time-button"]',
+              { timeout: 10000 }
+            );
+
+            if (!timeSlotVerification) {
+              console.log("Time slots not found after date click, retrying...");
+              await button.click(); // Try clicking again
+            }
+
+            return true;
+          } catch (error) {
+            console.log("Error after date click:", error);
+            // Take screenshot for debugging
+            await this.page!.screenshot({
+              path: `date-click-error-${Date.now()}.png`,
+              fullPage: true,
+            });
+            throw error;
+          }
         }
       }
 
