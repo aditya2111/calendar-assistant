@@ -172,26 +172,29 @@ export class PuppeteerService {
                 console.log("Clicked date button");
 
                 // Wait a bit for initial page update
-                await new Promise((resolve) => setTimeout(resolve, 1000));
+                await this.page!.waitForSelector(
+                  'button[data-container="time-button"]',
+                  {
+                    timeout: 10000, // Increase timeout to 10 seconds
+                    visible: true,
+                  }
+                );
 
                 // First check if time slot container appears
-                const isTimeSlotsPresent = await this.page!.evaluate(() => {
-                  const timeSlots = document.querySelectorAll(
+                const isTimeSlotsVisible = await this.page!.evaluate(() => {
+                  const button = document.querySelector(
                     'button[data-container="time-button"]'
                   );
-                  console.log(`Found ${timeSlots.length} time slots`);
-                  return timeSlots.length > 0;
+                  // Ensure the element is an HTMLElement before checking offsetParent
+                  return (
+                    button instanceof HTMLElement &&
+                    button.offsetParent !== null
+                  );
                 });
 
-                if (!isTimeSlotsPresent) {
+                if (!isTimeSlotsVisible) {
                   throw new Error("No time slots found after clicking date");
                 }
-
-                // Take screenshot for debugging
-                await this.page!.screenshot({
-                  path: `after-date-click-${Date.now()}.png`,
-                  fullPage: true,
-                });
               } catch (error) {
                 console.log("Error after clicking date:", error);
                 throw error; // This will trigger retry
@@ -288,7 +291,6 @@ export class PuppeteerService {
       2000
     );
   }
-  // Rest of the code for time selection...
   async fillFormAndSubmit(details: FormDetails): Promise<boolean> {
     if (!this.page) throw new Error("Browser not initialized");
 
