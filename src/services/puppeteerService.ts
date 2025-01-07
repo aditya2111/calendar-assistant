@@ -164,36 +164,42 @@ export class PuppeteerService {
         if (dayFromLabel === desiredDay) {
           console.log(`Found exact date: ${currentMonth} ${desiredDay}`);
 
-          // Click the date
-          await button.click();
-          console.log("Clicked on the date");
+          // Click with retry mechanism
+          await this.retry(
+            async () => {
+              // Wait for any existing network activity to complete
+              await this.page!.waitForNetworkIdle({ timeout: 5000 }).catch(
+                () => {
+                  console.log("Network still active, proceeding with click");
+                }
+              );
 
-          // Wait for the click to register and page to update
-          try {
-            // Wait for any loading indicators to disappear
-            await this.page!.waitForNetworkIdle({ timeout: 5000 });
+              // Click the date
+              await button.click();
+              console.log("Clicked date button");
 
-            // Verify time slots container appears
-            const timeSlotVerification = await this.page!.waitForSelector(
-              'button[data-container="time-button"]',
-              { timeout: 10000 }
-            );
+              // Wait for time slots to appear with multiple checks
+              await this.page!.waitForFunction(
+                () => {
+                  // Check for time slots
+                  const timeSlots = document.querySelectorAll(
+                    'button[data-container="time-button"]'
+                  );
+                  // Check for loading indicator
+                  const loading = document.querySelector('[aria-busy="true"]');
+                  // Return true only if we have time slots and no loading indicator
+                  return timeSlots.length > 0 && !loading;
+                },
+                { timeout: 10000 }
+              );
 
-            if (!timeSlotVerification) {
-              console.log("Time slots not found after date click, retrying...");
-              await button.click(); // Try clicking again
-            }
+              console.log("Time slots appeared after date selection");
+            },
+            3,
+            2000
+          ); // 3 retries, 2 second delay
 
-            return true;
-          } catch (error) {
-            console.log("Error after date click:", error);
-            // Take screenshot for debugging
-            await this.page!.screenshot({
-              path: `date-click-error-${Date.now()}.png`,
-              fullPage: true,
-            });
-            throw error;
-          }
+          return true;
         }
       }
 
