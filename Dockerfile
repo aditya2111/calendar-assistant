@@ -29,7 +29,7 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 # Copy package files and install project dependencies
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Copy the entire project into the container
 COPY . .
