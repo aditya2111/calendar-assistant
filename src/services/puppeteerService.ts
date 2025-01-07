@@ -9,7 +9,8 @@ export class PuppeteerService {
 
   async initBrowser() {
     try {
-      console.log("Starting browser initialization...");
+      // Log the Chrome path for debugging
+      console.log("Chrome path:", process.env.PUPPETEER_EXECUTABLE_PATH);
 
       this.browser = await puppeteer.launch({
         headless: true,
@@ -18,13 +19,14 @@ export class PuppeteerService {
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
         ],
+        executablePath: "/usr/bin/google-chrome-stable", // Use the exact path
       });
 
       console.log("Browser launched successfully");
       this.page = await this.browser.newPage();
-      await this.page.setViewport({ width: 1280, height: 800 });
     } catch (error) {
       console.error("Browser initialization failed:", error);
+      console.error("Error details:", error);
       throw error;
     }
   }
