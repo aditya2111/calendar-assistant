@@ -1,24 +1,28 @@
 FROM ghcr.io/puppeteer/puppeteer:latest
+
 USER root
 WORKDIR /app
 
+# Debug: List Chrome locations
+RUN echo "Checking Chrome installations:" && \
+    which google-chrome || echo "google-chrome not found" && \
+    which chromium || echo "chromium not found" && \
+    which chromium-browser || echo "chromium-browser not found" && \
+    ls -la /usr/bin/google-chrome* || echo "No google-chrome in /usr/bin" && \
+    ls -la /usr/bin/chromium* || echo "No chromium in /usr/bin"
+
 COPY package*.json ./
-RUN rm -f package-lock.json && \
-    npm install puppeteer@latest && \ 
-    npm install
+RUN rm -f package-lock.json && npm install
 
 COPY . .
-
 RUN npm run build
 
 ENV NODE_ENV=production
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-# Update this to match the actual path from the puppeteer Docker image
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+
+# Check for Chrome path from puppeteer
+RUN node -e "console.log('Puppeteer Chrome:', require('puppeteer').executablePath())"
 
 USER pptruser
 
-# Add a check before starting the app
-CMD /usr/bin/google-chrome-stable --version && \
-    ls -l /usr/bin/google-chrome-stable && \
-    npm start
+CMD npm start

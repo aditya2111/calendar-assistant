@@ -9,8 +9,7 @@ export class PuppeteerService {
 
   async initBrowser() {
     try {
-      // Log the Chrome path for debugging
-      console.log("Chrome path:", process.env.PUPPETEER_EXECUTABLE_PATH);
+      console.log("Starting browser initialization...");
 
       this.browser = await puppeteer.launch({
         headless: true,
@@ -19,7 +18,7 @@ export class PuppeteerService {
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
         ],
-        executablePath: "/usr/bin/google-chrome-stable", // Use the exact path
+        // Let Puppeteer find Chrome automatically
       });
 
       console.log("Browser launched successfully");
