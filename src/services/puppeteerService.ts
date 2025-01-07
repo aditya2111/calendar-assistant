@@ -164,40 +164,42 @@ export class PuppeteerService {
         if (dayFromLabel === desiredDay) {
           console.log(`Found exact date: ${currentMonth} ${desiredDay}`);
 
-          // Click with retry mechanism
           await this.retry(
             async () => {
-              // Wait for any existing network activity to complete
-              await this.page!.waitForNetworkIdle({ timeout: 5000 }).catch(
-                () => {
-                  console.log("Network still active, proceeding with click");
-                }
-              );
+              try {
+                // Click the date
+                await button.click();
+                console.log("Clicked date button");
 
-              // Click the date
-              await button.click();
-              console.log("Clicked date button");
+                // Wait a bit for initial page update
+                await new Promise((resolve) => setTimeout(resolve, 1000));
 
-              // Wait for time slots to appear with multiple checks
-              await this.page!.waitForFunction(
-                () => {
-                  // Check for time slots
+                // First check if time slot container appears
+                const isTimeSlotsPresent = await this.page!.evaluate(() => {
                   const timeSlots = document.querySelectorAll(
                     'button[data-container="time-button"]'
                   );
-                  // Check for loading indicator
-                  const loading = document.querySelector('[aria-busy="true"]');
-                  // Return true only if we have time slots and no loading indicator
-                  return timeSlots.length > 0 && !loading;
-                },
-                { timeout: 10000 }
-              );
+                  console.log(`Found ${timeSlots.length} time slots`);
+                  return timeSlots.length > 0;
+                });
 
-              console.log("Time slots appeared after date selection");
+                if (!isTimeSlotsPresent) {
+                  throw new Error("No time slots found after clicking date");
+                }
+
+                // Take screenshot for debugging
+                await this.page!.screenshot({
+                  path: `after-date-click-${Date.now()}.png`,
+                  fullPage: true,
+                });
+              } catch (error) {
+                console.log("Error after clicking date:", error);
+                throw error; // This will trigger retry
+              }
             },
-            3,
-            2000
-          ); // 3 retries, 2 second delay
+            5,
+            1000
+          ); // 5 retries, 1 second delay
 
           return true;
         }
@@ -218,17 +220,14 @@ export class PuppeteerService {
       async () => {
         try {
           // Wait for time slots to load
-          const timeSlotSelector = 'button[data-container="time-button"]';
-          await this.page!.waitForSelector(timeSlotSelector, { timeout: 5000 });
+          const timeSlots = await this.page!.$$(
+            'button[data-container="time-button"]'
+          );
+          if (timeSlots.length === 0) {
+            throw new Error("No time slots available on page");
+          }
 
           // Get all time slot buttons
-          const timeSlots: ElementHandle<Element>[] = await this.page!.$$(
-            timeSlotSelector
-          );
-
-          if (timeSlots.length === 0) {
-            throw new Error("No time slots found on page");
-          }
           console.log(`Found ${timeSlots.length} time slots`);
 
           // Round the desired time
