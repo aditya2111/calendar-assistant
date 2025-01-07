@@ -264,10 +264,13 @@ export class PuppeteerService {
       const timeSlots = await this.page!.$$(timeSlotSelector);
       console.log(`Found ${timeSlots.length} time slots`);
 
-      // Convert IST to UTC by subtracting 5 hours and 30 minutes
+      // Get local timezone offset in minutes
+      const localOffset = new Date().getTimezoneOffset();
+      console.log(`Local timezone offset: ${localOffset} minutes`);
+
+      // Convert local time to UTC for Calendly
       const targetTime = new Date(desiredDate);
-      targetTime.setHours(targetTime.getHours() - 5); // Subtract 5 hours
-      targetTime.setMinutes(targetTime.getMinutes() - 30); // Subtract 30 minutes
+      targetTime.setMinutes(targetTime.getMinutes() + localOffset); // Convert to UTC
 
       // Round to nearest 30 minutes
       const minutes = targetTime.getMinutes();
@@ -286,11 +289,11 @@ export class PuppeteerService {
           minute: "2-digit",
           hour12: false,
         })
-        .slice(0, 5); // Get HH:mm format
+        .slice(0, 5);
 
-      console.log(`Looking for time slot in UTC: ${targetTimeString}`); // Should show 05:30 for 11:00 IST
+      console.log(`Looking for time slot in UTC: ${targetTimeString}`);
       console.log(
-        `Original local time requested: ${desiredDate.toLocaleTimeString()}`
+        `Original local time requested: ${desiredDate.toLocaleString()}`
       );
 
       let timeFound = false;
@@ -319,8 +322,16 @@ export class PuppeteerService {
         );
       }
 
-      // Return original local time
-      return desiredDate;
+      // Convert UTC back to local time
+      const bookedDateTime = new Date(
+        desiredDate.getTime() - localOffset * 60000
+      );
+
+      console.log(
+        `Selected Date and Time (Local): ${bookedDateTime.toLocaleString()}`
+      );
+
+      return bookedDateTime; // Return the local time
     });
   }
   async fillFormAndSubmit(details: FormDetails): Promise<boolean> {
