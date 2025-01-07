@@ -183,48 +183,23 @@ export class PuppeteerService {
     return await this.retry(
       async () => {
         try {
-          // Wait for network idle
-          await this.page!.waitForNetworkIdle({ timeout: 10000 }).catch((e) =>
-            console.log("Network still has activity:", e.message)
+          // Wait for time slots to load
+          const timeSlotSelector = 'button[data-container="time-button"]';
+          await this.page!.waitForSelector(timeSlotSelector, { timeout: 5000 });
+
+          // Get all time slot buttons
+          const timeSlots: ElementHandle<Element>[] = await this.page!.$$(
+            timeSlotSelector
           );
 
-          // Try different selectors
-          let timeSlots: ElementHandle<Element>[] = [];
-          const selectors = [
-            'button[data-container="time-button"]',
-            "button[data-start-time]",
-            'button[type="button"]:not([disabled])',
-          ];
-
-          for (const selector of selectors) {
-            console.log(`Trying selector: ${selector}`);
-            try {
-              await this.page!.waitForSelector(selector, { timeout: 5000 });
-              timeSlots = await this.page!.$$(selector);
-              if (timeSlots.length > 0) {
-                console.log(
-                  `Found ${timeSlots.length} time slots with selector: ${selector}`
-                );
-                break;
-              }
-            } catch (err) {
-              console.log(`Selector ${selector} not found, trying next...`);
-            }
-          }
-
           if (timeSlots.length === 0) {
-            console.log("Taking screenshot of current state");
-            await this.page!.screenshot({
-              path: "no-timeslots.png",
-              fullPage: true,
-            });
             throw new Error("No time slots found on page");
           }
+          console.log(`Found ${timeSlots.length} time slots`);
 
           // Round the desired time
           const minutes = desiredDate.getMinutes();
           const targetTime = new Date(desiredDate);
-          console.log("Rounding off the time");
 
           if (minutes < 15) {
             targetTime.setMinutes(0, 0, 0);
@@ -243,73 +218,36 @@ export class PuppeteerService {
             })
             .toLowerCase();
 
-          console.log(
-            `Looking for nearest available slot to: ${targetTimeString}`
-          );
-          console.log(`Found ${timeSlots.length} total time slots`);
+          console.log(`Looking for time slot: ${targetTimeString}`);
 
           let timeFound = false;
           for (const timeSlot of timeSlots) {
-            try {
-              const buttonText = await timeSlot.evaluate(
-                (el) => el.textContent
-              );
-              console.log(`Checking time slot with text: ${buttonText}`);
+            const startTime = await timeSlot.evaluate((el) =>
+              el.getAttribute("data-start-time")
+            );
 
-              const startTime = await timeSlot.evaluate((el) => {
-                return (
-                  el.getAttribute("data-start-time") ||
-                  el.getAttribute("data-time") ||
-                  el.textContent
-                );
-              });
+            if (startTime) {
+              const normalizedTargetTime = targetTimeString.replace(/\s/g, "");
+              const normalizedStartTime = startTime
+                .toLowerCase()
+                .replace(/\s/g, "");
 
-              if (startTime) {
-                const normalizedTargetTime = targetTimeString.replace(
-                  /\s/g,
-                  ""
-                );
-                const normalizedStartTime = startTime
-                  .toLowerCase()
-                  .replace(/\s/g, "");
-
-                console.log(
-                  `Comparing: target=${normalizedTargetTime}, slot=${normalizedStartTime}`
-                );
-
-                if (normalizedStartTime === normalizedTargetTime) {
-                  await timeSlot.click();
-                  timeFound = true;
-                  console.log(
-                    "Found and clicked desired time slot:",
-                    startTime
-                  );
-                  break;
-                }
+              if (normalizedStartTime === normalizedTargetTime) {
+                await timeSlot.click();
+                timeFound = true;
+                console.log("Found and clicked time slot:", startTime);
+                break;
               }
-            } catch (err) {
-              console.log("Error checking time slot:", err);
-              continue;
             }
           }
 
           if (!timeFound) {
-            await this.page!.screenshot({
-              path: "time-not-found.png",
-              fullPage: true,
-            });
-            throw new Error(
-              `Time slot ${targetTimeString} not available for selected date`
-            );
+            throw new Error(`Time slot ${targetTimeString} not available`);
           }
 
           return targetTime;
         } catch (error) {
           console.error("Error in time selection:", error);
-          await this.page!.screenshot({
-            path: "time-selection-error.png",
-            fullPage: true,
-          });
           throw error;
         }
       },
