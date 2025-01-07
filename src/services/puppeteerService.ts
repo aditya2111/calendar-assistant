@@ -273,15 +273,7 @@ export class PuppeteerService {
       targetTime.setMinutes(targetTime.getMinutes() + localOffset); // Convert to UTC
 
       // Round to nearest 30 minutes
-      const minutes = targetTime.getMinutes();
-      if (minutes < 15) {
-        targetTime.setMinutes(0, 0, 0);
-      } else if (minutes < 45) {
-        targetTime.setMinutes(30, 0, 0);
-      } else {
-        targetTime.setMinutes(0, 0, 0);
-        targetTime.setHours(targetTime.getHours() + 1);
-      }
+      this.roundTime(targetTime);
 
       const targetTimeString = targetTime
         .toLocaleTimeString("en-US", {
@@ -330,6 +322,7 @@ export class PuppeteerService {
       console.log(
         `Selected Date and Time (Local): ${bookedDateTime.toLocaleString()}`
       );
+      this.roundTime(bookedDateTime);
 
       return bookedDateTime; // Return the local time
     });
@@ -483,6 +476,17 @@ export class PuppeteerService {
       if (retries <= 0) throw error;
       await new Promise((resolve) => setTimeout(resolve, delay));
       return this.retry(fn, retries - 1, delay);
+    }
+  }
+  async roundTime(targetTime: Date): Promise<void> {
+    const minutes = targetTime.getMinutes();
+    if (minutes < 15) {
+      targetTime.setMinutes(0, 0, 0);
+    } else if (minutes < 45) {
+      targetTime.setMinutes(30, 0, 0);
+    } else {
+      targetTime.setMinutes(0, 0, 0);
+      targetTime.setHours(targetTime.getHours() + 1);
     }
   }
 }
