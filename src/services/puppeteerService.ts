@@ -164,6 +164,7 @@ export class PuppeteerService {
         if (dayFromLabel === desiredDay) {
           console.log(`Found exact date: ${currentMonth} ${desiredDay}`);
           await button.click();
+          console.log("Clicked on the date");
           return true;
         }
       }
