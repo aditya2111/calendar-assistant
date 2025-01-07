@@ -228,11 +228,7 @@ export class PuppeteerService {
                 });
 
                 if (!timeSlots) {
-                  console.log("Time slots not found, taking screenshot");
-                  await this.page!.screenshot({
-                    path: `no-timeslots-${Date.now()}.png`,
-                    fullPage: true,
-                  });
+                  console.log("Time slots not found");
                   throw new Error("Time slots not found after waiting");
                 }
 
@@ -260,108 +256,72 @@ export class PuppeteerService {
   }
 
   private async findAndSelectTime(desiredDate: Date): Promise<Date> {
-    return await this.retry(
-      async () => {
-        const timeSlotSelector =
-          'button[data-container="time-button"]:not([disabled])';
-        await this.page!.waitForSelector(timeSlotSelector);
+    return await this.retry(async () => {
+      const timeSlotSelector =
+        'button[data-container="time-button"]:not([disabled])';
+      await this.page!.waitForSelector(timeSlotSelector);
 
-        const timeSlots = await this.page!.$$(timeSlotSelector);
-        console.log(`Found ${timeSlots.length} time slots`);
+      const timeSlots = await this.page!.$$(timeSlotSelector);
+      console.log(`Found ${timeSlots.length} time slots`);
 
-        // Debug: Log all available time slots
-        const availableTimeSlots = await Promise.all(
-          timeSlots.map(async (slot) => {
-            const startTime = await slot.evaluate((el) =>
-              el.getAttribute("data-start-time")
-            );
-            return startTime;
-          })
+      // Round target time
+      const minutes = desiredDate.getMinutes();
+      const targetTime = new Date(desiredDate);
+      if (minutes < 15) {
+        targetTime.setMinutes(0, 0, 0);
+      } else if (minutes < 45) {
+        targetTime.setMinutes(30, 0, 0);
+      } else {
+        targetTime.setMinutes(0, 0, 0);
+        targetTime.setHours(targetTime.getHours() + 1);
+      }
+
+      // Convert target time to 24-hour format
+      const targetTimeString = targetTime.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+
+      console.log(`Looking for time slot: ${targetTimeString}`);
+
+      let timeFound = false;
+      for (const timeSlot of timeSlots) {
+        const startTime = await timeSlot.evaluate((el) =>
+          el.getAttribute("data-start-time")
         );
-        console.log("Available time slots:", availableTimeSlots);
+        if (startTime) {
+          // Convert Calendly time to 24-hour format
+          const [hours, minutes] = startTime.split(":");
+          const slotHours = parseInt(hours);
+          const slotMinutes = minutes.replace(/[ap]m/, "");
 
-        let timeFound = false;
-        const minutes = desiredDate.getMinutes();
-        const targetTime = new Date(desiredDate);
+          // Create comparable time string
+          const slotTimeString = `${slotHours
+            .toString()
+            .padStart(2, "0")}:${slotMinutes}`;
 
-        if (minutes < 15) {
-          targetTime.setMinutes(0, 0, 0);
-        } else if (minutes < 45) {
-          targetTime.setMinutes(30, 0, 0);
-        } else {
-          targetTime.setMinutes(0, 0, 0);
-          targetTime.setHours(targetTime.getHours() + 1);
-        }
-
-        const targetTimeString = targetTime
-          .toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })
-          .toLowerCase();
-
-        console.log(`Looking for time slot: ${targetTimeString}`);
-
-        for (const timeSlot of timeSlots) {
-          const startTime = await timeSlot.evaluate((el) =>
-            el.getAttribute("data-start-time")
+          console.log(
+            `Comparing - Target: ${targetTimeString}, Available: ${slotTimeString}`
           );
-          if (startTime) {
-            const normalizedTargetTime = targetTimeString.replace(/\s/g, "");
-            const normalizedStartTime = startTime
-              .toLowerCase()
-              .replace(/\s/g, "");
 
-            // Debug: Log each comparison
-            console.log(
-              `Comparing - Target: ${normalizedTargetTime}, Available: ${normalizedStartTime}`
-            );
-
-            if (normalizedStartTime === normalizedTargetTime) {
-              try {
-                // Debug: Log element state before clicking
-                const isVisible = await timeSlot.evaluate((el) => {
-                  const rect = el.getBoundingClientRect();
-                  return rect.height > 0 && rect.width > 0;
-                });
-                console.log(`Time slot element is visible: ${isVisible}`);
-
-                await timeSlot.click();
-                timeFound = true;
-                console.log("Successfully clicked time slot:", startTime);
-                break;
-              } catch (clickError) {
-                console.error("Failed to click time slot:", clickError);
-                // Take screenshot on click failure
-                await this.page!.screenshot({
-                  path: `click-error-${Date.now()}.png`,
-                  fullPage: true,
-                });
-              }
-            }
+          if (slotTimeString === targetTimeString) {
+            await timeSlot.click();
+            timeFound = true;
+            console.log("Found and clicked desired time slot:", startTime);
+            break;
           }
         }
+      }
 
-        if (!timeFound) {
-          // Take screenshot of the state when no slot is found
-          await this.page!.screenshot({
-            path: `no-slot-${Date.now()}.png`,
-            fullPage: true,
-          });
+      if (!timeFound) {
+        throw new Error(
+          `Time slot ${targetTimeString} not available for selected date`
+        );
+      }
 
-          throw new Error(
-            `Time slot ${targetTimeString} not available. Available slots: ${availableTimeSlots.join(
-              ", "
-            )}`
-          );
-        }
-
-        return targetTime;
-      },
-      3,
-      2000
-    );
+      return targetTime;
+    });
   }
 
   async fillFormAndSubmit(details: FormDetails): Promise<boolean> {
