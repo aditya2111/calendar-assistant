@@ -1,7 +1,7 @@
 FROM node:18-slim
 
 # Set the working directory
-WORKDIR /usr/src/app
+WORKDIR /app
 
 # Install necessary dependencies and Google Chrome Stable
 RUN apt-get update && apt-get install -y \
