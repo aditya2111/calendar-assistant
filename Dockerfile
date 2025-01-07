@@ -3,6 +3,20 @@ FROM ghcr.io/puppeteer/puppeteer:latest
 USER root
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    ca-certificates \
+    fonts-liberation \
+    libappindicator3-1 \
+    libasound2 \
+    libgbm-dev \
+    libnspr4 \
+    libnss3 \
+    xdg-utils \
+    google-chrome-stable \
+    --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 # Debug: List Chrome locations
 RUN echo "Checking Chrome installations:" && \
     which google-chrome || echo "google-chrome not found" && \
