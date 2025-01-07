@@ -179,8 +179,7 @@ export class PuppeteerService {
 
   private async findAndSelectTime(desiredDate: Date): Promise<Date> {
     return await this.retry(async () => {
-      const timeSlotSelector =
-        'button[data-container="time-button"]:not([disabled])';
+      const timeSlotSelector = 'button[data-container="time-button"]';
       await this.page!.waitForSelector(timeSlotSelector);
 
       const timeSlots = await this.page!.$$(timeSlotSelector);
