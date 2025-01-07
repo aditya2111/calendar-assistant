@@ -264,13 +264,10 @@ export class PuppeteerService {
       const timeSlots = await this.page!.$$(timeSlotSelector);
       console.log(`Found ${timeSlots.length} time slots`);
 
-      // Get local timezone offset in minutes
-      const localOffset = new Date().getTimezoneOffset();
-      console.log(`Local timezone offset: ${localOffset} minutes`);
-
-      // Adjust time from local to UTC
+      // Convert IST to UTC by subtracting 5 hours and 30 minutes
       const targetTime = new Date(desiredDate);
-      targetTime.setMinutes(targetTime.getMinutes() + localOffset); // Convert to UTC
+      targetTime.setHours(targetTime.getHours() - 5); // Subtract 5 hours
+      targetTime.setMinutes(targetTime.getMinutes() - 30); // Subtract 30 minutes
 
       // Round to nearest 30 minutes
       const minutes = targetTime.getMinutes();
@@ -288,11 +285,10 @@ export class PuppeteerService {
           hour: "2-digit",
           minute: "2-digit",
           hour12: false,
-          timeZone: "UTC", // Ensure UTC time format
         })
         .slice(0, 5); // Get HH:mm format
 
-      console.log(`Looking for time slot in UTC: ${targetTimeString}`);
+      console.log(`Looking for time slot in UTC: ${targetTimeString}`); // Should show 05:30 for 11:00 IST
       console.log(
         `Original local time requested: ${desiredDate.toLocaleTimeString()}`
       );
@@ -327,7 +323,6 @@ export class PuppeteerService {
       return desiredDate;
     });
   }
-
   async fillFormAndSubmit(details: FormDetails): Promise<boolean> {
     if (!this.page) throw new Error("Browser not initialized");
 

@@ -23,7 +23,7 @@ export class MessageGeneratorService {
     });
 
     this.promptTemplate = new PromptTemplate({
-      template: `Generate a friendly, professional meeting confirmation email with the following details:
+      template: `Generate a friendly, professional meeting confirmation email body only with the following details:
 - Name: {name}
 - Date: {date}
 - Time: {time}
