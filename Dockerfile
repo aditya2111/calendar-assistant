@@ -1,8 +1,10 @@
-FROM ghcr.io/puppeteer/puppeteer:latest
+# Use a minimal Node.js image
+FROM node:18-slim
 
-USER root
-WORKDIR /app
+# Set the working directory
+WORKDIR /usr/src/app
 
+# Install necessary dependencies and Google Chrome Stable
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -14,29 +16,27 @@ RUN apt-get update && apt-get install -y \
     libnspr4 \
     libnss3 \
     xdg-utils \
-    google-chrome-stable \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
-# Debug: List Chrome locations
-RUN echo "Checking Chrome installations:" && \
-    which google-chrome || echo "google-chrome not found" && \
-    which chromium || echo "chromium not found" && \
-    which chromium-browser || echo "chromium-browser not found" && \
-    ls -la /usr/bin/google-chrome* || echo "No google-chrome in /usr/bin" && \
-    ls -la /usr/bin/chromium* || echo "No chromium in /usr/bin"
 
-COPY package*.json ./
-RUN rm -f package-lock.json && npm install
+# Add Google Chrome's official signing key and repository
+RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /etc/apt/trusted.gpg.d/google-chrome.gpg && \
+    sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list' && \
+    apt-get update && \
+    apt-get install -y google-chrome-stable
 
-COPY . .
-RUN npm run build
-
-ENV NODE_ENV=production
+# Prevent Puppeteer from downloading Chromium separately
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# Check for Chrome path from puppeteer
-RUN node -e "console.log('Puppeteer Chrome:', require('puppeteer').executablePath())"
+# Copy package files and install project dependencies
+COPY package*.json ./
+RUN npm install
 
-USER pptruser
+# Copy the entire project into the container
+COPY . .
 
-CMD npm start
+# Build the project (if using TypeScript)
+RUN npm run build
+
+# Start the application
+CMD ["npm", "start"]
