@@ -265,12 +265,10 @@ export class PuppeteerService {
       console.log(`Found ${timeSlots.length} time slots`);
 
       // Get local timezone offset in minutes
-      const localOffset = new Date().getTimezoneOffset();
-      console.log(`Local timezone offset: ${localOffset} minutes`);
 
       // Convert local time to UTC for Calendly
       const targetTime = new Date(desiredDate);
-      targetTime.setMinutes(targetTime.getMinutes() + localOffset); // Convert to UTC
+      targetTime.setMinutes(targetTime.getMinutes()); // Convert to UTC
 
       // Round to nearest 30 minutes
       this.roundTime(targetTime);
@@ -314,17 +312,7 @@ export class PuppeteerService {
         );
       }
 
-      // Convert UTC back to local time
-      const bookedDateTime = new Date(
-        desiredDate.getTime() - localOffset * 60000
-      );
-
-      console.log(
-        `Selected Date and Time (Local): ${bookedDateTime.toLocaleString()}`
-      );
-      this.roundTime(bookedDateTime);
-
-      return bookedDateTime; // Return the local time
+      return desiredDate; // Return the local time
     });
   }
   async fillFormAndSubmit(details: FormDetails): Promise<boolean> {
