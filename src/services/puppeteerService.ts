@@ -50,7 +50,7 @@ export class PuppeteerService {
       console.log("Navigating to Calendly page...");
       await this.page.goto(calendlyUrl, {
         waitUntil: "networkidle0",
-        timeout: 180000, // Increased to 180 seconds
+        timeout: 120000, // Increased to 120 seconds
       });
       console.log("Navigation completed");
     } catch (error) {
@@ -179,63 +179,127 @@ export class PuppeteerService {
   }
 
   private async findAndSelectTime(desiredDate: Date): Promise<Date> {
-    return await this.retry(async () => {
-      const timeSlotSelector = 'button[data-container="time-button"]';
-      await this.page!.waitForSelector(timeSlotSelector, { timeout: 120000 });
+    console.log("Searching for desired time...");
+    return await this.retry(
+      async () => {
+        try {
+          // First wait for any network activity to complete
+          await this.page!.waitForNetworkIdle({ timeout: 10000 }).catch((e) =>
+            console.log("Network still has activity:", e.message)
+          );
 
-      const timeSlots = await this.page!.$$(timeSlotSelector);
-      let timeFound = false;
+          // Try multiple selectors for time slots
+          const timeSelectors = [
+            'button[data-container="time-button"]',
+            "button[data-start-time]",
+            'button[type="button"]:not([disabled])',
+          ];
 
-      const minutes = desiredDate.getMinutes();
-      const targetTime = new Date(desiredDate);
-      if (minutes < 15) {
-        targetTime.setMinutes(0, 0, 0);
-      } else if (minutes < 45) {
-        targetTime.setMinutes(30, 0, 0);
-      } else {
-        targetTime.setMinutes(0, 0, 0);
-        targetTime.setHours(targetTime.getHours() + 1);
-      }
+          let timeSlotElement = null;
 
-      // Get nearest half hour slot
-      const targetTimeString = targetTime
-        .toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        })
-        .toLowerCase();
-
-      console.log(`Looking for nearest available slot to: ${targetTimeString}`);
-
-      for (const timeSlot of timeSlots) {
-        const startTime = await timeSlot.evaluate((el) =>
-          el.getAttribute("data-start-time")
-        );
-        if (startTime) {
-          // Normalize times for comparison
-          const normalizedTargetTime = targetTimeString.replace(/\s/g, "");
-          const normalizedStartTime = startTime
-            .toLowerCase()
-            .replace(/\s/g, "");
-
-          if (normalizedStartTime === normalizedTargetTime) {
-            await timeSlot.click();
-            timeFound = true;
-            console.log("Found and clicked desired time slot:", startTime);
-            break;
+          // Try each selector
+          for (const selector of timeSelectors) {
+            console.log(`Trying selector: ${selector}`);
+            try {
+              await this.page!.waitForSelector(selector, { timeout: 5000 });
+              timeSlotElement = await this.page!.$(selector);
+              if (timeSlotElement) {
+                console.log(`Found time slots with selector: ${selector}`);
+                break;
+              }
+            } catch (err) {
+              console.log(`Selector ${selector} not found, trying next...`);
+            }
           }
+
+          if (!timeSlotElement) {
+            throw new Error("No time slot selectors found on page");
+          }
+
+          const timeSlots = await this.page!.$$(timeSlotElement.toString());
+          let timeFound = false;
+
+          // Round the desired time
+          const minutes = desiredDate.getMinutes();
+          const targetTime = new Date(desiredDate);
+          console.log("Rounding off the time");
+
+          if (minutes < 15) {
+            targetTime.setMinutes(0, 0, 0);
+          } else if (minutes < 45) {
+            targetTime.setMinutes(30, 0, 0);
+          } else {
+            targetTime.setMinutes(0, 0, 0);
+            targetTime.setHours(targetTime.getHours() + 1);
+          }
+
+          const targetTimeString = targetTime
+            .toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            })
+            .toLowerCase();
+
+          console.log(
+            `Looking for nearest available slot to: ${targetTimeString}`
+          );
+
+          // Take screenshot before searching slots
+          await this.page!.screenshot({
+            path: "time-slots.png",
+            fullPage: true,
+          });
+
+          for (const timeSlot of timeSlots) {
+            const startTime = await timeSlot.evaluate((el) => {
+              // Try multiple attributes that might contain the time
+              return (
+                el.getAttribute("data-start-time") ||
+                el.getAttribute("data-time") ||
+                el.textContent
+              );
+            });
+
+            if (startTime) {
+              const normalizedTargetTime = targetTimeString.replace(/\s/g, "");
+              const normalizedStartTime = startTime
+                .toLowerCase()
+                .replace(/\s/g, "");
+
+              console.log(
+                `Comparing times: Target=${normalizedTargetTime}, Slot=${normalizedStartTime}`
+              );
+
+              if (normalizedStartTime === normalizedTargetTime) {
+                await timeSlot.click();
+                timeFound = true;
+                console.log("Found and clicked desired time slot:", startTime);
+                break;
+              }
+            }
+          }
+
+          if (!timeFound) {
+            throw new Error(
+              `Time slot ${targetTimeString} not available for selected date`
+            );
+          }
+
+          return targetTime;
+        } catch (error) {
+          console.error("Error in time selection:", error);
+          // Take error screenshot
+          await this.page!.screenshot({
+            path: "time-selection-error.png",
+            fullPage: true,
+          });
+          throw error;
         }
-      }
-
-      if (!timeFound) {
-        throw new Error(
-          `Time slot ${targetTimeString} not available for selected date`
-        );
-      }
-
-      return targetTime;
-    });
+      },
+      3,
+      2000
+    ); // 3 retries, 2 second delay
   }
   // Rest of the code for time selection...
   async fillFormAndSubmit(details: FormDetails): Promise<boolean> {
