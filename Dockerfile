@@ -1,4 +1,3 @@
-# Use a minimal Node.js image
 FROM node:18-slim
 
 # Set the working directory
@@ -26,11 +25,11 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearm
     apt-get install -y google-chrome-stable
 
 # Prevent Puppeteer from downloading Chromium separately
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 # Copy package files and install project dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm ci --omit=dev
 
 # Copy the entire project into the container
 COPY . .
