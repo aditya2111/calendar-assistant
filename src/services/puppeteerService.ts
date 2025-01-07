@@ -163,47 +163,8 @@ export class PuppeteerService {
 
         if (dayFromLabel === desiredDay) {
           console.log(`Found exact date: ${currentMonth} ${desiredDay}`);
-
-          await this.retry(
-            async () => {
-              try {
-                // Click the date
-                await button.click();
-                console.log("Clicked date button");
-
-                // Wait a bit for initial page update
-                await this.page!.waitForSelector(
-                  'button[data-container="time-button"]',
-                  {
-                    timeout: 10000, // Increase timeout to 10 seconds
-                    visible: true,
-                  }
-                );
-
-                // First check if time slot container appears
-                const isTimeSlotsVisible = await this.page!.evaluate(() => {
-                  const button = document.querySelector(
-                    'button[data-container="time-button"]'
-                  );
-                  // Ensure the element is an HTMLElement before checking offsetParent
-                  return (
-                    button instanceof HTMLElement &&
-                    button.offsetParent !== null
-                  );
-                });
-
-                if (!isTimeSlotsVisible) {
-                  throw new Error("No time slots found after clicking date");
-                }
-              } catch (error) {
-                console.log("Error after clicking date:", error);
-                throw error; // This will trigger retry
-              }
-            },
-            5,
-            1000
-          ); // 5 retries, 1 second delay
-
+          await button.click();
+          console.log("Clicked on the date");
           return true;
         }
       }
@@ -223,9 +184,22 @@ export class PuppeteerService {
       async () => {
         try {
           // Wait for time slots to load
-          const timeSlots = await this.page!.$$(
-            'button[data-container="time-button"]'
-          );
+          let timeSlots: ElementHandle<Element>[] = [];
+          if (this.page) {
+            const timeSlots = await this.page.$$eval(
+              'button[data-container="time-button"]',
+              (buttons) => {
+                return Array.from(buttons).filter((button) => {
+                  // This excludes buttons where 'data-start-time' exactly matches '9:00am'
+                  return button.getAttribute("data-start-time") !== "9:00am";
+                });
+              }
+            );
+            // Use timeSlots here
+          } else {
+            console.error("Page is not initialized");
+            // Handle the case where page is null, perhaps throw an error or return an empty array
+          }
           if (timeSlots.length === 0) {
             throw new Error("No time slots available on page");
           }
