@@ -1,4 +1,4 @@
-import { Page } from "puppeteer";
+import { ElementHandle, Page } from "puppeteer";
 import * as puppeteer from "puppeteer";
 import { FormDetails } from "../types/booking";
 
@@ -183,28 +183,28 @@ export class PuppeteerService {
     return await this.retry(
       async () => {
         try {
-          // First wait for any network activity to complete
+          // Wait for network idle
           await this.page!.waitForNetworkIdle({ timeout: 10000 }).catch((e) =>
             console.log("Network still has activity:", e.message)
           );
 
-          // Try multiple selectors for time slots
-          const timeSelectors = [
+          // Try different selectors
+          let timeSlots: ElementHandle<Element>[] = [];
+          const selectors = [
             'button[data-container="time-button"]',
             "button[data-start-time]",
             'button[type="button"]:not([disabled])',
           ];
 
-          let timeSlotElement = null;
-
-          // Try each selector
-          for (const selector of timeSelectors) {
+          for (const selector of selectors) {
             console.log(`Trying selector: ${selector}`);
             try {
               await this.page!.waitForSelector(selector, { timeout: 5000 });
-              timeSlotElement = await this.page!.$(selector);
-              if (timeSlotElement) {
-                console.log(`Found time slots with selector: ${selector}`);
+              timeSlots = await this.page!.$$(selector);
+              if (timeSlots.length > 0) {
+                console.log(
+                  `Found ${timeSlots.length} time slots with selector: ${selector}`
+                );
                 break;
               }
             } catch (err) {
@@ -212,12 +212,14 @@ export class PuppeteerService {
             }
           }
 
-          if (!timeSlotElement) {
-            throw new Error("No time slot selectors found on page");
+          if (timeSlots.length === 0) {
+            console.log("Taking screenshot of current state");
+            await this.page!.screenshot({
+              path: "no-timeslots.png",
+              fullPage: true,
+            });
+            throw new Error("No time slots found on page");
           }
-
-          const timeSlots = await this.page!.$$(timeSlotElement.toString());
-          let timeFound = false;
 
           // Round the desired time
           const minutes = desiredDate.getMinutes();
@@ -244,43 +246,58 @@ export class PuppeteerService {
           console.log(
             `Looking for nearest available slot to: ${targetTimeString}`
           );
+          console.log(`Found ${timeSlots.length} total time slots`);
 
-          // Take screenshot before searching slots
-          await this.page!.screenshot({
-            path: "time-slots.png",
-            fullPage: true,
-          });
-
+          let timeFound = false;
           for (const timeSlot of timeSlots) {
-            const startTime = await timeSlot.evaluate((el) => {
-              // Try multiple attributes that might contain the time
-              return (
-                el.getAttribute("data-start-time") ||
-                el.getAttribute("data-time") ||
-                el.textContent
+            try {
+              const buttonText = await timeSlot.evaluate(
+                (el) => el.textContent
               );
-            });
+              console.log(`Checking time slot with text: ${buttonText}`);
 
-            if (startTime) {
-              const normalizedTargetTime = targetTimeString.replace(/\s/g, "");
-              const normalizedStartTime = startTime
-                .toLowerCase()
-                .replace(/\s/g, "");
+              const startTime = await timeSlot.evaluate((el) => {
+                return (
+                  el.getAttribute("data-start-time") ||
+                  el.getAttribute("data-time") ||
+                  el.textContent
+                );
+              });
 
-              console.log(
-                `Comparing times: Target=${normalizedTargetTime}, Slot=${normalizedStartTime}`
-              );
+              if (startTime) {
+                const normalizedTargetTime = targetTimeString.replace(
+                  /\s/g,
+                  ""
+                );
+                const normalizedStartTime = startTime
+                  .toLowerCase()
+                  .replace(/\s/g, "");
 
-              if (normalizedStartTime === normalizedTargetTime) {
-                await timeSlot.click();
-                timeFound = true;
-                console.log("Found and clicked desired time slot:", startTime);
-                break;
+                console.log(
+                  `Comparing: target=${normalizedTargetTime}, slot=${normalizedStartTime}`
+                );
+
+                if (normalizedStartTime === normalizedTargetTime) {
+                  await timeSlot.click();
+                  timeFound = true;
+                  console.log(
+                    "Found and clicked desired time slot:",
+                    startTime
+                  );
+                  break;
+                }
               }
+            } catch (err) {
+              console.log("Error checking time slot:", err);
+              continue;
             }
           }
 
           if (!timeFound) {
+            await this.page!.screenshot({
+              path: "time-not-found.png",
+              fullPage: true,
+            });
             throw new Error(
               `Time slot ${targetTimeString} not available for selected date`
             );
@@ -289,7 +306,6 @@ export class PuppeteerService {
           return targetTime;
         } catch (error) {
           console.error("Error in time selection:", error);
-          // Take error screenshot
           await this.page!.screenshot({
             path: "time-selection-error.png",
             fullPage: true,
@@ -299,7 +315,7 @@ export class PuppeteerService {
       },
       3,
       2000
-    ); // 3 retries, 2 second delay
+    );
   }
   // Rest of the code for time selection...
   async fillFormAndSubmit(details: FormDetails): Promise<boolean> {
