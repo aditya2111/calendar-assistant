@@ -183,8 +183,69 @@ export class PuppeteerService {
 
         if (dayFromLabel === desiredDay) {
           console.log(`Found exact date: ${currentMonth} ${desiredDay}`);
-          await button.click();
-          console.log("Clicked on the date");
+
+          await this.retry(
+            async () => {
+              try {
+                // Click the date
+                await button.click();
+                console.log("Clicked date button");
+
+                // Wait for any loading indicators or network activity
+                await this.page!.waitForNetworkIdle({ timeout: 5000 }).catch(
+                  () => {
+                    console.log("Network still active");
+                  }
+                );
+
+                // Wait and check for time slots
+                const timeSlots = await this.page!.evaluate(() => {
+                  // Give some time for React/JS to update the DOM
+                  return new Promise((resolve) => {
+                    let attempts = 0;
+                    const checkTimeSlots = () => {
+                      const slots = document.querySelectorAll(
+                        'button[data-container="time-button"]'
+                      );
+                      console.log(
+                        `Attempt ${attempts + 1}: Found ${
+                          slots.length
+                        } time slots`
+                      );
+
+                      if (slots.length > 0) {
+                        resolve(true);
+                      } else if (attempts < 10) {
+                        // Try for 5 seconds (10 * 500ms)
+                        attempts++;
+                        setTimeout(checkTimeSlots, 500);
+                      } else {
+                        resolve(false);
+                      }
+                    };
+                    checkTimeSlots();
+                  });
+                });
+
+                if (!timeSlots) {
+                  console.log("Time slots not found, taking screenshot");
+                  await this.page!.screenshot({
+                    path: `no-timeslots-${Date.now()}.png`,
+                    fullPage: true,
+                  });
+                  throw new Error("Time slots not found after waiting");
+                }
+
+                console.log("Time slots found successfully");
+              } catch (error) {
+                console.log("Error during date selection:", error);
+                throw error;
+              }
+            },
+            3,
+            2000
+          ); // 3 retries, 2 second delay
+
           return true;
         }
       }
