@@ -264,9 +264,16 @@ export class PuppeteerService {
       const timeSlots = await this.page!.$$(timeSlotSelector);
       console.log(`Found ${timeSlots.length} time slots`);
 
-      // Round target time
-      const minutes = desiredDate.getMinutes();
+      // Get local timezone offset in minutes
+      const localOffset = new Date().getTimezoneOffset();
+      console.log(`Local timezone offset: ${localOffset} minutes`);
+
+      // Adjust time from local to UTC
       const targetTime = new Date(desiredDate);
+      targetTime.setMinutes(targetTime.getMinutes() + localOffset); // Convert to UTC
+
+      // Round to nearest 30 minutes
+      const minutes = targetTime.getMinutes();
       if (minutes < 15) {
         targetTime.setMinutes(0, 0, 0);
       } else if (minutes < 45) {
@@ -276,14 +283,19 @@ export class PuppeteerService {
         targetTime.setHours(targetTime.getHours() + 1);
       }
 
-      // Convert target time to 24-hour format
-      const targetTimeString = targetTime.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
+      const targetTimeString = targetTime
+        .toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+          timeZone: "UTC", // Ensure UTC time format
+        })
+        .slice(0, 5); // Get HH:mm format
 
-      console.log(`Looking for time slot: ${targetTimeString}`);
+      console.log(`Looking for time slot in UTC: ${targetTimeString}`);
+      console.log(
+        `Original local time requested: ${desiredDate.toLocaleTimeString()}`
+      );
 
       let timeFound = false;
       for (const timeSlot of timeSlots) {
@@ -291,21 +303,12 @@ export class PuppeteerService {
           el.getAttribute("data-start-time")
         );
         if (startTime) {
-          // Convert Calendly time to 24-hour format
-          const [hours, minutes] = startTime.split(":");
-          const slotHours = parseInt(hours);
-          const slotMinutes = minutes.replace(/[ap]m/, "");
-
-          // Create comparable time string
-          const slotTimeString = `${slotHours
-            .toString()
-            .padStart(2, "0")}:${slotMinutes}`;
-
+          const timeStr = startTime.replace(/[ap]m$/, "");
           console.log(
-            `Comparing - Target: ${targetTimeString}, Available: ${slotTimeString}`
+            `Comparing - Target UTC: ${targetTimeString}, Available: ${timeStr}`
           );
 
-          if (slotTimeString === targetTimeString) {
+          if (timeStr === targetTimeString) {
             await timeSlot.click();
             timeFound = true;
             console.log("Found and clicked desired time slot:", startTime);
@@ -320,7 +323,8 @@ export class PuppeteerService {
         );
       }
 
-      return targetTime;
+      // Return original local time
+      return desiredDate;
     });
   }
 
