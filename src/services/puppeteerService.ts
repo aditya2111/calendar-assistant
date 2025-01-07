@@ -311,7 +311,7 @@ export class PuppeteerService {
           `Time slot ${targetTimeString} not available for selected date`
         );
       }
-
+      this.roundTime(desiredDate);
       return desiredDate; // Return the local time
     });
   }
