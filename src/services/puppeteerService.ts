@@ -260,64 +260,108 @@ export class PuppeteerService {
   }
 
   private async findAndSelectTime(desiredDate: Date): Promise<Date> {
-    return await this.retry(async () => {
-      const timeSlotSelector =
-        'button[data-container="time-button"]:not([disabled])'; //data container attribute
-      await this.page!.waitForSelector(timeSlotSelector);
+    return await this.retry(
+      async () => {
+        const timeSlotSelector =
+          'button[data-container="time-button"]:not([disabled])';
+        await this.page!.waitForSelector(timeSlotSelector);
 
-      const timeSlots = await this.page!.$$(timeSlotSelector); //gets all available time slots
-      let timeFound = false;
+        const timeSlots = await this.page!.$$(timeSlotSelector);
+        console.log(`Found ${timeSlots.length} time slots`);
 
-      const minutes = desiredDate.getMinutes();
-      const targetTime = new Date(desiredDate);
-      // Gets nearest half hour slot :
-      if (minutes < 15) {
-        targetTime.setMinutes(0, 0, 0);
-      } else if (minutes < 45) {
-        targetTime.setMinutes(30, 0, 0);
-      } else {
-        targetTime.setMinutes(0, 0, 0);
-        targetTime.setHours(targetTime.getHours() + 1);
-      }
-
-      const targetTimeString = targetTime //Converts time to "hour:minute am/pm" format
-        .toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        })
-        .toLowerCase();
-
-      console.log(`Looking for nearest available slot to: ${targetTimeString}`);
-
-      for (const timeSlot of timeSlots) {
-        const startTime = await timeSlot.evaluate(
-          (el) => el.getAttribute("data-start-time") //gets start time from data attribute
+        // Debug: Log all available time slots
+        const availableTimeSlots = await Promise.all(
+          timeSlots.map(async (slot) => {
+            const startTime = await slot.evaluate((el) =>
+              el.getAttribute("data-start-time")
+            );
+            return startTime;
+          })
         );
-        if (startTime) {
-          // Normalize times for comparison
-          const normalizedTargetTime = targetTimeString.replace(/\s/g, "");
-          const normalizedStartTime = startTime
-            .toLowerCase()
-            .replace(/\s/g, ""); // normalizing for comparison
+        console.log("Available time slots:", availableTimeSlots);
 
-          if (normalizedStartTime === normalizedTargetTime) {
-            await timeSlot.click(); //clicks matching time slot
-            timeFound = true;
-            console.log("Found and clicked desired time slot:", startTime);
-            break;
+        let timeFound = false;
+        const minutes = desiredDate.getMinutes();
+        const targetTime = new Date(desiredDate);
+
+        if (minutes < 15) {
+          targetTime.setMinutes(0, 0, 0);
+        } else if (minutes < 45) {
+          targetTime.setMinutes(30, 0, 0);
+        } else {
+          targetTime.setMinutes(0, 0, 0);
+          targetTime.setHours(targetTime.getHours() + 1);
+        }
+
+        const targetTimeString = targetTime
+          .toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          })
+          .toLowerCase();
+
+        console.log(`Looking for time slot: ${targetTimeString}`);
+
+        for (const timeSlot of timeSlots) {
+          const startTime = await timeSlot.evaluate((el) =>
+            el.getAttribute("data-start-time")
+          );
+          if (startTime) {
+            const normalizedTargetTime = targetTimeString.replace(/\s/g, "");
+            const normalizedStartTime = startTime
+              .toLowerCase()
+              .replace(/\s/g, "");
+
+            // Debug: Log each comparison
+            console.log(
+              `Comparing - Target: ${normalizedTargetTime}, Available: ${normalizedStartTime}`
+            );
+
+            if (normalizedStartTime === normalizedTargetTime) {
+              try {
+                // Debug: Log element state before clicking
+                const isVisible = await timeSlot.evaluate((el) => {
+                  const rect = el.getBoundingClientRect();
+                  return rect.height > 0 && rect.width > 0;
+                });
+                console.log(`Time slot element is visible: ${isVisible}`);
+
+                await timeSlot.click();
+                timeFound = true;
+                console.log("Successfully clicked time slot:", startTime);
+                break;
+              } catch (clickError) {
+                console.error("Failed to click time slot:", clickError);
+                // Take screenshot on click failure
+                await this.page!.screenshot({
+                  path: `click-error-${Date.now()}.png`,
+                  fullPage: true,
+                });
+              }
+            }
           }
         }
-      }
 
-      if (!timeFound) {
-        throw new Error(
-          `Time slot ${targetTimeString} not available for selected date`
-        );
-      }
+        if (!timeFound) {
+          // Take screenshot of the state when no slot is found
+          await this.page!.screenshot({
+            path: `no-slot-${Date.now()}.png`,
+            fullPage: true,
+          });
 
-      return targetTime;
-    });
+          throw new Error(
+            `Time slot ${targetTimeString} not available. Available slots: ${availableTimeSlots.join(
+              ", "
+            )}`
+          );
+        }
+
+        return targetTime;
+      },
+      3,
+      2000
+    );
   }
 
   async fillFormAndSubmit(details: FormDetails): Promise<boolean> {
