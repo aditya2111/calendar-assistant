@@ -201,22 +201,16 @@ export class PuppeteerService {
 
   private async findAndSelectTime(desiredDate: Date): Promise<Date> {
     return await this.retry(async () => {
-      // Wait for time slots to load with increased timeout and visibility check
+      const timeSlotSelector =
+        'button[data-container="time-button"]:not([disabled])'; //data container attribute
+      await this.page!.waitForSelector(timeSlotSelector);
 
-      const buttonCount = await this.page!.$$eval(
-        'button[data-container="time-button"]',
-        (buttons) => buttons.length
-      );
-      console.log(`Found ${buttonCount} time buttons on the page.`);
-      if (buttonCount === 0) {
-        throw new Error("No available time slots.");
-      }
-      const buttons = await this.page!.$$(
-        'button[data-container="time-button"]'
-      );
+      const timeSlots = await this.page!.$$(timeSlotSelector); //gets all available time slots
+      let timeFound = false;
 
       const minutes = desiredDate.getMinutes();
       const targetTime = new Date(desiredDate);
+      // Gets nearest half hour slot :
       if (minutes < 15) {
         targetTime.setMinutes(0, 0, 0);
       } else if (minutes < 45) {
@@ -226,37 +220,40 @@ export class PuppeteerService {
         targetTime.setHours(targetTime.getHours() + 1);
       }
 
-      const targetTimeString = targetTime
+      const targetTimeString = targetTime //Converts time to "hour:minute am/pm" format
         .toLocaleTimeString("en-US", {
           hour: "numeric",
           minute: "2-digit",
           hour12: true,
         })
-        .toLowerCase()
-        .replace(/\s/g, "");
+        .toLowerCase();
 
-      let timeFound = false;
-      for (const button of buttons) {
-        const isVisible = await button.evaluate(
-          (el) => el.offsetParent !== null
-        );
-        const startTime = await button.evaluate((el) =>
-          el.getAttribute("data-start-time")
-        );
+      console.log(`Looking for nearest available slot to: ${targetTimeString}`);
 
-        if (
-          isVisible &&
-          startTime?.toLowerCase().replace(/\s/g, "") === targetTimeString
-        ) {
-          await button.click();
-          console.log(`Selected time slot: ${startTime}`);
-          timeFound = true;
-          break;
+      for (const timeSlot of timeSlots) {
+        const startTime = await timeSlot.evaluate(
+          (el) => el.getAttribute("data-start-time") //gets start time from data attribute
+        );
+        if (startTime) {
+          // Normalize times for comparison
+          const normalizedTargetTime = targetTimeString.replace(/\s/g, "");
+          const normalizedStartTime = startTime
+            .toLowerCase()
+            .replace(/\s/g, ""); // normalizing for comparison
+
+          if (normalizedStartTime === normalizedTargetTime) {
+            await timeSlot.click(); //clicks matching time slot
+            timeFound = true;
+            console.log("Found and clicked desired time slot:", startTime);
+            break;
+          }
         }
       }
 
       if (!timeFound) {
-        throw new Error(`Time slot ${targetTimeString} not found.`);
+        throw new Error(
+          `Time slot ${targetTimeString} not available for selected date`
+        );
       }
 
       return targetTime;
