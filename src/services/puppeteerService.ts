@@ -12,11 +12,12 @@ export class PuppeteerService {
       console.log("Starting browser initialization...");
 
       this.browser = await puppeteer.launch({
-        headless: false,
+        headless: true,
         args: [
           "--no-sandbox",
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
+          "--disable-third-party-cookies",
         ],
       });
 
@@ -52,7 +53,27 @@ export class PuppeteerService {
         waitUntil: "networkidle0",
         timeout: 120000, // Increased to 120 seconds
       });
+
       console.log("Navigation completed");
+      await this.page.waitForSelector("#onetrust-accept-btn-handler", {
+        timeout: 5000,
+      });
+
+      // Click the cookie consent button
+      const cookieConsentButton = await this.page.$(
+        "#onetrust-accept-btn-handler"
+      );
+      if (cookieConsentButton) {
+        await cookieConsentButton.click();
+        console.log("Cookie consent accepted");
+        const delay = (ms: number) =>
+          new Promise((resolve) => setTimeout(resolve, ms));
+
+        console.log("Waiting for cookie clearance");
+        await delay(5000);
+      } else {
+        console.error("Cookie consent button not found");
+      }
     } catch (error) {
       console.error("Error navigating to Calendly page:", error);
       throw error;
@@ -179,92 +200,69 @@ export class PuppeteerService {
   }
 
   private async findAndSelectTime(desiredDate: Date): Promise<Date> {
-    console.log("Searching for desired time...");
-    return await this.retry(
-      async () => {
-        try {
-          // Wait for time slots to load
-          let timeSlots: ElementHandle<Element>[] = [];
-          if (this.page) {
-            const timeSlots = await this.page.$$eval(
-              'button[data-container="time-button"]',
-              (buttons) => {
-                return Array.from(buttons).filter((button) => {
-                  // This excludes buttons where 'data-start-time' exactly matches '9:00am'
-                  return button.getAttribute("data-start-time") !== "9:00am";
-                });
-              }
-            );
-            // Use timeSlots here
-          } else {
-            console.error("Page is not initialized");
-            // Handle the case where page is null, perhaps throw an error or return an empty array
-          }
-          if (timeSlots.length === 0) {
-            throw new Error("No time slots available on page");
-          }
+    return await this.retry(async () => {
+      // Wait for time slots to load with increased timeout and visibility check
 
-          // Get all time slot buttons
-          console.log(`Found ${timeSlots.length} time slots`);
+      const buttonCount = await this.page!.$$eval(
+        'button[data-container="time-button"]',
+        (buttons) => buttons.length
+      );
+      console.log(`Found ${buttonCount} time buttons on the page.`);
+      if (buttonCount === 0) {
+        throw new Error("No available time slots.");
+      }
+      const buttons = await this.page!.$$(
+        'button[data-container="time-button"]'
+      );
 
-          // Round the desired time
-          const minutes = desiredDate.getMinutes();
-          const targetTime = new Date(desiredDate);
+      const minutes = desiredDate.getMinutes();
+      const targetTime = new Date(desiredDate);
+      if (minutes < 15) {
+        targetTime.setMinutes(0, 0, 0);
+      } else if (minutes < 45) {
+        targetTime.setMinutes(30, 0, 0);
+      } else {
+        targetTime.setMinutes(0, 0, 0);
+        targetTime.setHours(targetTime.getHours() + 1);
+      }
 
-          if (minutes < 15) {
-            targetTime.setMinutes(0, 0, 0);
-          } else if (minutes < 45) {
-            targetTime.setMinutes(30, 0, 0);
-          } else {
-            targetTime.setMinutes(0, 0, 0);
-            targetTime.setHours(targetTime.getHours() + 1);
-          }
+      const targetTimeString = targetTime
+        .toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        })
+        .toLowerCase()
+        .replace(/\s/g, "");
 
-          const targetTimeString = targetTime
-            .toLocaleTimeString("en-US", {
-              hour: "numeric",
-              minute: "2-digit",
-              hour12: true,
-            })
-            .toLowerCase();
+      let timeFound = false;
+      for (const button of buttons) {
+        const isVisible = await button.evaluate(
+          (el) => el.offsetParent !== null
+        );
+        const startTime = await button.evaluate((el) =>
+          el.getAttribute("data-start-time")
+        );
 
-          console.log(`Looking for time slot: ${targetTimeString}`);
-
-          let timeFound = false;
-          for (const timeSlot of timeSlots) {
-            const startTime = await timeSlot.evaluate((el) =>
-              el.getAttribute("data-start-time")
-            );
-
-            if (startTime) {
-              const normalizedTargetTime = targetTimeString.replace(/\s/g, "");
-              const normalizedStartTime = startTime
-                .toLowerCase()
-                .replace(/\s/g, "");
-
-              if (normalizedStartTime === normalizedTargetTime) {
-                await timeSlot.click();
-                timeFound = true;
-                console.log("Found and clicked time slot:", startTime);
-                break;
-              }
-            }
-          }
-
-          if (!timeFound) {
-            throw new Error(`Time slot ${targetTimeString} not available`);
-          }
-
-          return targetTime;
-        } catch (error) {
-          console.error("Error in time selection:", error);
-          throw error;
+        if (
+          isVisible &&
+          startTime?.toLowerCase().replace(/\s/g, "") === targetTimeString
+        ) {
+          await button.click();
+          console.log(`Selected time slot: ${startTime}`);
+          timeFound = true;
+          break;
         }
-      },
-      3,
-      2000
-    );
+      }
+
+      if (!timeFound) {
+        throw new Error(`Time slot ${targetTimeString} not found.`);
+      }
+
+      return targetTime;
+    });
   }
+
   async fillFormAndSubmit(details: FormDetails): Promise<boolean> {
     if (!this.page) throw new Error("Browser not initialized");
 

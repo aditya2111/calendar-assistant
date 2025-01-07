@@ -29,9 +29,9 @@ export class BookingService {
       console.log("Booking status: Processing");
       await BookingModel.updateStatus(bookingId, BookingStatus.PROCESSING);
 
-      await this.puppeteerService.goToCalendlyPage(calendlyUrl);
-
-      // Single method call for automation
+      const navigation = await this.puppeteerService.goToCalendlyPage(
+        calendlyUrl
+      );
       const bookedDateTime = await this.puppeteerService.selectDateAndTime(
         bookingDateTime
       );
