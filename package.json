@@ -8,8 +8,7 @@
     "start": "node dist/app.js",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "postinstall": "npx puppeteer browsers install chrome"
+    "test:coverage": "jest --coverage"
   },
   "keywords": [],
   "author": "",
