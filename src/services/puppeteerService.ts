@@ -94,7 +94,7 @@ export class PuppeteerService {
       console.log("Navigating to Calendly page...");
       await this.page.goto(calendlyUrl, {
         waitUntil: "networkidle0",
-        timeout: 120000, // Increased to 120 seconds
+        timeout: 240000, // Increased to 240 seconds
       });
 
       console.log("Navigation completed");
